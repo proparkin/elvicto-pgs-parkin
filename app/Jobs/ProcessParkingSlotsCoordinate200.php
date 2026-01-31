@@ -17,139 +17,108 @@ class ProcessParkingSlotsCoordinate200 implements ShouldQueue
 
     public function handle(): void
     {
-        $totalCameras = 1007;
-        $batchSize = 1007;
+        $totalCameras = 100;
+        $batchSize = 500;
 
+        // Load slot coordinates ONCE at the start
         $slotCoordinatesPath = storage_path('app/slot_coordinates.json');
-    
+        $slotCoordinates = json_decode(file_get_contents($slotCoordinatesPath), true);
+
         for ($start = 1; $start <= $totalCameras; $start += $batchSize) 
         {
             $end = min($start + $batchSize - 1, $totalCameras);
 
-            $slotImageBasePath = storage_path("app/public/new_parkin_slot_images_{$start}_{$end}");
-            $currentFolder = $slotImageBasePath;
-            $remoteImageFolder = "/root/slot_images/new_parkin_slot_images_{$start}_{$end}";
+            if ($end === $totalCameras && ($end - $start + 1) < $batchSize) 
+            {
+                $prevStart = $start - $batchSize;
+                $prevEnd = $start - 1;
+                // $slotImageBasePath = storage_path("app/public/new_parkin_slot_images_{$prevStart}_{$prevEnd}");
+                // $remoteImageFolder = "/root/slot_images/new_parkin_slot_images_{$prevStart}_{$prevEnd}";
+                $slotImageBasePath = storage_path("app/public/baywise_parkin_slot_images");
+                $remoteImageFolder = "/root/slot_images/baywise_parkin_slot_images";
+            } 
+            else 
+            {
+                $slotImageBasePath = storage_path("app/public/baywise_parkin_slot_images");
+                $remoteImageFolder = "/root/slot_images/baywise_parkin_slot_images}";
+            }
 
-            // ensure local folders exist and have proper perms
             if (!file_exists($slotImageBasePath)) 
             {
-                mkdir($slotImageBasePath, 0775, true);
+                mkdir($slotImageBasePath, 0777, true);
             }
-            if (!file_exists($currentFolder)) 
-            {
-                mkdir($currentFolder, 0775, true);
-            }
-            // safe: ensure folder perms/ownership (runs best when this PHP process can chown)
-            @chown($slotImageBasePath, 'test');
-            @chgrp($slotImageBasePath, 'test');
-            @chmod($slotImageBasePath, 0775);
 
-            $camera_data = Camera::select('id', 'ip_address')
+            // Optimized query: get cameras with their slots in one query using eager loading
+            $cameras = Camera::select('id', 'ip_address')
+                ->with(['parking_slots:id,camera_id'])
                 ->whereBetween('id', [$start, $end])
                 ->where('status', 1)
+                ->whereHas('parking_slots')
                 ->orderBy('id', 'asc')
                 ->get();
 
-            if ($camera_data->isEmpty()) 
+            if ($cameras->isEmpty()) 
             {
                 continue;
             }
 
-            $pool = Pool::create()->concurrency(25);
+            // Increase concurrency for faster processing
+            $pool = Pool::create()->concurrency(50);
 
-            foreach ($camera_data as $camera) 
+            foreach ($cameras as $camera) 
             {
-                $output_image = storage_path('app/public/camera_images_upload/' . $camera->id . '.jpg');
+                $output_image = storage_path('app/public/camera_images_baywise/camera_' . $camera->id . '.jpg');
+
                 if (!file_exists($output_image)) 
                 {
                     continue;
                 }
 
-                $parkingSlots = ParkingSlot::where('camera_id', $camera->id)->get()->map(function ($slot) 
+                $parkingSlots = $camera->parking_slots->pluck('id')->toArray();
+                if (empty($parkingSlots)) 
                 {
-                    return [
-                        'id' => $slot->id,
-                        'camera_id' => $slot->camera_id
-                    ];
-                })->toArray();
+                    continue;
+                }
 
-                $pool->add(function () use ($output_image, $parkingSlots, $currentFolder, $slotCoordinatesPath) 
+                $pool->add(function () use ($output_image, $parkingSlots, $slotImageBasePath, $slotCoordinates) {
+                    $imagick = new \Imagick($output_image);
+                    $imagick->setIteratorIndex(0);
+                    $imagick->setImageCompression(\Imagick::COMPRESSION_JPEG);
+                    $imagick->setImageCompressionQuality(85);
+                    $imagick->setImageFormat('jpeg');
+
+                foreach ($parkingSlots as $slotId) 
                 {
-                    $old_umask = umask(000); // new files will get 777 bits (owner/group/others can be restricted later by chmod)
-                    try 
-                    {
-                        $imagick = new \Imagick($output_image);
-                        $slotCoordinates = json_decode(file_get_contents($slotCoordinatesPath), true);
+                    if (!isset($slotCoordinates[$slotId])) continue;
 
-                        foreach ($parkingSlots as $slot) {
-                            if (!isset($slotCoordinates[$slot['id']])) continue;
+                    $coords = $slotCoordinates[$slotId];
+                    $slotPath = $slotImageBasePath . '/' . $slotId . '.jpg';
 
-                            $coords = $slotCoordinates[$slot['id']];
-                            $slotCurrentPath = $currentFolder . '/' . $slot['id'] . '.jpg';
+                    $slotImagick = clone $imagick;
+                    $slotImagick->cropImage($coords['w'], $coords['h'], $coords['x'], $coords['y']);
+                    $slotImagick->stripImage();
+                    $slotImagick->writeImage($slotPath);
+                    $slotImagick->clear();
+                    $slotImagick->destroy();
+                }
 
-                            $slotImagick = clone $imagick;
-                            $slotImagick->cropImage($coords['w'], $coords['h'], $coords['x'], $coords['y']);
-                            $slotImagick->writeImage($slotCurrentPath);
+                $imagick->clear();
+                $imagick->destroy();
+            })->catch(function ($exception) {
+                \Log::error('Image processing error: ' . $exception->getMessage());
+            });
+        }
 
-                        
-                            @chmod($slotCurrentPath, 0775);            
-                            @chown($slotCurrentPath, 'test'); 
-                            @chgrp($slotCurrentPath, 'test');     
-
-                            $slotImagick->clear();
-                            $slotImagick->destroy();
-                        }
-
-                        $imagick->clear();
-                        $imagick->destroy();
-                    } finally {
-                        umask($old_umask);
-                    }
-                });
-            }
-
-            // wait for cropping tasks to finish
             $pool->wait();
 
-            // create temporary send folder and copy only files that exist (ensures permissions are set)
-            $tmpSendFolder = $slotImageBasePath . '/to_send';
-            if (!file_exists($tmpSendFolder)) mkdir($tmpSendFolder, 0775, true);
+            // Use rsync instead of scp for faster transfer with compression
+            // -a: archive mode, -z: compress, -q: quiet
+            // exec("rsync -azq {$slotImageBasePath}/  root@10.0.1.123:{$remoteImageFolder}/");
+            exec("rsync -aq --inplace --no-compress {$slotImageBasePath}/ root@10.0.1.123:{$remoteImageFolder}/");
 
-            // copy all current images to tmpSendFolder (we could filter by changed slots in future)
-            $files = glob($currentFolder . '/*.jpg');
-            foreach ($files as $f) 
-            {
-                $base = basename($f);
-                copy($f, $tmpSendFolder . '/' . $base);
-                @chmod($tmpSendFolder . '/' . $base, 0775);
-                @chown($tmpSendFolder . '/' . $base, 'parkin_pgsold');
-                @chgrp($tmpSendFolder . '/' . $base, 'www-data');
-            }
-
-            // scp to remote (use key-based auth). After scp, run remote chmod recursively to ensure permissions there.
-            $scpCmd = "scp -r " . escapeshellarg($tmpSendFolder) . "/* test:" . escapeshellarg($remoteImageFolder);
-            exec($scpCmd, $scpOut, $scpRet);
-
-        
-                // run remote chmod via ssh to enforce perms remotely
-                $sshCmd = "ssh test 'mkdir -p " . escapeshellarg($remoteImageFolder) . " && chmod -R 0775 " . escapeshellarg($remoteImageFolder) . "'";
-                exec($sshCmd, $sshOut, $sshRet);
-                if ($sshRet !== 0) 
-                {
-                    \Log::error("Remote chmod failed: " . implode("\n", $sshOut));
-                }
-            
-
-            // cleanup local tmpSendFolder files (keep current folder for debug if you want)
-            $tmpFiles = glob($tmpSendFolder . '/*');
-            foreach ($tmpFiles as $tf) 
-            {
-                @unlink($tf);
-            }
-            @rmdir($tmpSendFolder);
-        } // end batches
+        }
     }
-
-  
+    
+    
 
 }

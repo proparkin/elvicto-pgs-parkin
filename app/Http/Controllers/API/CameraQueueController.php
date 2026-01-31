@@ -4,7 +4,7 @@ namespace App\Http\Controllers\API;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller as Controller;  
-use App\Jobs\{ProcessCameraImage,ProcessParkingSlotsCoordinate,ProcessParkingSlotsCoordinateOne,WifiLampReserveSlotsJob,DetectNumberPlateSlotsCoordinate,DetectNumberPlateSlotsCoordinateOne,NewDetectNumberPlateSlotsCoordinateFour,WifiLampJob,WifiLampJobTwo};
+use App\Jobs\{ProcessCameraImage,FlaskDetectNumberPlateSlotsCoordinate,FlaskDetectNumberPlateSlotsCoordinateTwo,ProcessParkingSlotsCoordinate,ProcessParkingSlotsCoordinateOne,WifiLampReserveSlotsJob,DetectNumberPlateSlotsCoordinate,DetectNumberPlateSlotsCoordinateOne,NewDetectNumberPlateSlotsCoordinateFour,WifiLampJob,WifiLampJobTwo};
 use App\Models\{Vehicle,ParkingSlot,Camera}; 
 use App\Jobs\ProcessCameraImageJoblist\{MainProcessCameraImage,MainProcessCameraImageOne};
 use Illuminate\Support\Facades\Bus;
@@ -25,8 +25,8 @@ class CameraQueueController extends Controller
         {
             $start = $i * $batchSize + 1;
             $end = ($i + 1) * $batchSize;
-            // $jobs[] = new MainProcessCameraImage($start, $end);
-            $jobs[] = new MainProcessCameraImageOne($start,$end);
+            $jobs[] = new MainProcessCameraImage($start, $end);
+            // $jobs[] = new MainProcessCameraImageOne($start,$end);
         
         }
 
@@ -34,17 +34,18 @@ class CameraQueueController extends Controller
         ->then(function (Batch $batch) 
         {
             Bus::chain([
-                // new ProcessParkingSlotsCoordinate(),
+                new ProcessParkingSlotsCoordinate(),
 
-                new ProcessParkingSlotsCoordinateOne(),
+                // new ProcessParkingSlotsCoordinateOne(),
+                new FlaskDetectNumberPlateSlotsCoordinate(),
+                new FlaskDetectNumberPlateSlotsCoordinateTwo(),
+                //new DetectNumberPlateSlotsCoordinate(),
+                //new DetectNumberPlateSlotsCoordinateOne(),
+                //new NewDetectNumberPlateSlotsCoordinateFour(),
+                new WifiLampJob(),
+                new WifiLampJobTwo(),
 
-                // new DetectNumberPlateSlotsCoordinate(),
-                new DetectNumberPlateSlotsCoordinateOne(),
-                // new NewDetectNumberPlateSlotsCoordinateFour(),
-                // new WifiLampJob(),
-                // new WifiLampJobTwo(),
-
-                new WifiLampReserveSlotsJob(),
+                //new WifiLampReserveSlotsJob(),
               
             ])->dispatch();
         })

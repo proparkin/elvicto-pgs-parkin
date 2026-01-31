@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
+use App\Http\Controllers\API\FtpMotion\{CameraUploadFtpController};
 use App\Http\Controllers\API\{DisplayCountController,WifiLampController,CountAvaliableSlotController,CameraController,CameraQueueController,ParkingController,ProcessCameraImageQueueController,NewParkinCameraQueueController,NewParkinLampController,CameraQueueController200}; 
 
 /*  
@@ -59,7 +60,6 @@ Route::get('slots-booking',[CountAvaliableSlotController::class, 'bookingSlots']
 Route::get('book-slots-remove',[CountAvaliableSlotController::class, 'bookingRemove']);
 
 Route::get('lamp-control-api',[WifiLampController::class, 'lampControl']);
-
 Route::get('test-lamp-control-api',[WifiLampController::class, 'testLampControl']);
 
 // Setup for 200 cameras
@@ -68,5 +68,16 @@ Route::get('get-live-stream-200',[CameraQueueController200::class,'getLiveStream
 Route::get('get-crop-images-200',[CameraQueueController200::class,'ProcessParkingSlotsCoordinate']); 
 Route::get('get-detect-plate-200',[CameraQueueController200::class,'DetectNumberPlateSJob']); 
 Route::get('get-lamp-200',[CameraQueueController200::class,'WifiLampJob']); 
+
+// setup for FTP upload camera images
+
+Route::get('get-ftp-images',[CameraUploadFtpController::class,'getLiveStream']); 
+
+Route::get('get-motion-images',[CameraUploadFtpController::class,'getLiveStream']);
+Route::get('get-crop-motion-images',[CameraUploadFtpController::class,'ProcessParkingSlotsCoordinate']);
+Route::get('get-detect-motion-images',[CameraUploadFtpController::class,'DetectNumberPlateSJob']);
+
+
+
 
 

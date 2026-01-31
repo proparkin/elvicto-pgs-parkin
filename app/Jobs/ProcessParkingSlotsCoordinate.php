@@ -7,90 +7,97 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Models\{Camera,ParkingSlot};
+use App\Models\{Camera, ParkingSlot};
 use Spatie\Async\Pool;
 use Imagick;
+use Illuminate\Support\Facades\DB;
 
 class ProcessParkingSlotsCoordinate implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $timeout = 600;
+
     public function handle(): void
-{
-    $totalCameras = 1007;
-    $batchSize = 500;  
-
-    $slotCoordinatesPath = storage_path('app/slot_coordinates.json');
-    
-    for ($start = 1; $start <= $totalCameras; $start += $batchSize) 
     {
-        $end = min($start + $batchSize - 1, $totalCameras);
+        $totalCameras = 1007;
+        $batchSize = 500;
 
-        
-        if ($end === $totalCameras && ($end - $start + 1) < $batchSize) 
+        // Load slot coordinates ONCE at the start
+        $slotCoordinatesPath = storage_path('app/slot_coordinates.json');
+        $slotCoordinates = json_decode(file_get_contents($slotCoordinatesPath), true);
+
+        for ($start = 1; $start <= $totalCameras; $start += $batchSize) 
         {
-          
-            $prevStart = $start - $batchSize;
-            $prevEnd   = $start - 1;
+            $end = min($start + $batchSize - 1, $totalCameras);
 
-            $slotImageBasePath = storage_path("app/public/new_parkin_slot_images_{$prevStart}_{$prevEnd}");
-            $remoteImageFolder = "/root/slot_images/new_parkin_slot_images_{$prevStart}_{$prevEnd}";
-        } 
-        else 
-        {
-            $slotImageBasePath = storage_path("app/public/new_parkin_slot_images_{$start}_{$end}");
-            $remoteImageFolder = "/root/slot_images/new_parkin_slot_images_{$start}_{$end}";
-        }
+            if ($end === $totalCameras && ($end - $start + 1) < $batchSize) 
+            {
+                $prevStart = $start - $batchSize;
+                $prevEnd = $start - 1;
+                $slotImageBasePath = storage_path("app/public/new_parkin_slot_images_{$prevStart}_{$prevEnd}");
+                $remoteImageFolder = "/root/slot_images/new_parkin_slot_images_{$prevStart}_{$prevEnd}";
+            } 
+            else 
+            {
+                $slotImageBasePath = storage_path("app/public/new_parkin_slot_images_{$start}_{$end}");
+                $remoteImageFolder = "/root/slot_images/new_parkin_slot_images_{$start}_{$end}";
+            }
 
-        if (!file_exists($slotImageBasePath)) 
-        {
-            mkdir($slotImageBasePath, 0777, true);
-        }
+            if (!file_exists($slotImageBasePath)) 
+            {
+                mkdir($slotImageBasePath, 0777, true);
+            }
 
-        $camera_data = Camera::select('id', 'ip_address')
-            ->whereBetween('id', [$start, $end])
-            ->where('status', 1)
-            ->orderBy('id', 'asc')
-            ->get();
+            // Optimized query: get cameras with their slots in one query using eager loading
+            $cameras = Camera::select('id', 'ip_address')
+                ->with(['parking_slots:id,camera_id'])
+                ->whereBetween('id', [$start, $end])
+                ->where('status', 1)
+                ->whereHas('parking_slots')
+                ->orderBy('id', 'asc')
+                ->get();
 
-        if ($camera_data->isEmpty()) 
-        {
-            continue;
-        }
-
-        $pool = Pool::create()->concurrency(25);
-
-        foreach ($camera_data as $camera) 
-        {
-            $output_image = storage_path('app/public/camera_images/camera_' . $camera->id . '.jpg');
-
-            if (!file_exists($output_image)) 
+            if ($cameras->isEmpty()) 
             {
                 continue;
             }
 
-            $parkingSlots = ParkingSlot::where('camera_id', $camera->id)->get()->map(function ($slot) {
-                return [
-                    'id' => $slot->id,
-                    'camera_id' => $slot->camera_id
-                ];
-            })->toArray();         
-        
+            // Increase concurrency for faster processing
+            $pool = Pool::create()->concurrency(50);
 
+            foreach ($cameras as $camera) 
+            {
+                $output_image = storage_path('app/public/camera_images/camera_' . $camera->id . '.jpg');
 
-            $pool->add(function () use ($output_image, $parkingSlots, $slotImageBasePath, $slotCoordinatesPath) {
-                $imagick = new \Imagick($output_image);
-                $slotCoordinates = json_decode(file_get_contents($slotCoordinatesPath), true);
-
-                foreach ($parkingSlots as $slot) 
+                if (!file_exists($output_image)) 
                 {
-                    if (!isset($slotCoordinates[$slot['id']])) continue;
+                    continue;
+                }
 
-                    $coords = $slotCoordinates[$slot['id']];
-                    $slotPath = $slotImageBasePath . '/' . $slot['id'] . '.jpg';
+                $parkingSlots = $camera->parking_slots->pluck('id')->toArray();
+                if (empty($parkingSlots)) 
+                {
+                    continue;
+                }
+
+                $pool->add(function () use ($output_image, $parkingSlots, $slotImageBasePath, $slotCoordinates) {
+                    $imagick = new \Imagick($output_image);
+                    $imagick->setIteratorIndex(0);
+                    $imagick->setImageCompression(\Imagick::COMPRESSION_JPEG);
+                    $imagick->setImageCompressionQuality(85);
+                    $imagick->setImageFormat('jpeg');
+
+                foreach ($parkingSlots as $slotId) 
+                {
+                    if (!isset($slotCoordinates[$slotId])) continue;
+
+                    $coords = $slotCoordinates[$slotId];
+                    $slotPath = $slotImageBasePath . '/' . $slotId . '.jpg';
 
                     $slotImagick = clone $imagick;
                     $slotImagick->cropImage($coords['w'], $coords['h'], $coords['x'], $coords['y']);
+                    $slotImagick->stripImage();
                     $slotImagick->writeImage($slotPath);
                     $slotImagick->clear();
                     $slotImagick->destroy();
@@ -98,14 +105,18 @@ class ProcessParkingSlotsCoordinate implements ShouldQueue
 
                 $imagick->clear();
                 $imagick->destroy();
+            })->catch(function ($exception) {
+                \Log::error('Image processing error: ' . $exception->getMessage());
             });
         }
 
-       
-        $pool->wait();
+            $pool->wait();
 
-        exec("scp -r {$slotImageBasePath}/* root@test:{$remoteImageFolder}");
+            // Use rsync instead of scp for faster transfer with compression
+            // -a: archive mode, -z: compress, -q: quiet
+            // exec("rsync -azq {$slotImageBasePath}/  root@10.0.1.123:{$remoteImageFolder}/");
+            exec("rsync -aq --inplace --no-compress {$slotImageBasePath}/ root@10.0.1.123:{$remoteImageFolder}/");
+
+        }
     }
-}
-
 }

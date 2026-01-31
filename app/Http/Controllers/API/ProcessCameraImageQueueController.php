@@ -4,7 +4,7 @@ namespace App\Http\Controllers\API;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller as Controller;  
-use App\Jobs\{ProcessParkingSlotsCoordinate};
+use App\Jobs\{ProcessParkingSlotsCoordinate,FlaskDetectNumberPlateSlotsCoordinate,FlaskDetectNumberPlateSlotsCoordinateTwo,WifiLampJob};
 use App\Models\{Vehicle,ParkingSlot,Camera}; 
 use App\Jobs\ProcessCameraImageJoblist\{MainProcessCameraImage};
 use Illuminate\Support\Facades\Bus;
@@ -27,14 +27,17 @@ class ProcessCameraImageQueueController extends Controller
             $end = ($i + 1) * $batchSize;
             
             $jobs[] = new MainProcessCameraImage($start, $end);
-        
+
         }
       
         Bus::batch($jobs)
         ->then(function (Batch $batch) 
         {
             Bus::chain([
-                new ProcessParkingSlotsCoordinate()
+                new ProcessParkingSlotsCoordinate(),
+                new FlaskDetectNumberPlateSlotsCoordinate(),
+                new FlaskDetectNumberPlateSlotsCoordinateTwo(),
+                new WifiLampJob()
               
             ])->dispatch();
         })

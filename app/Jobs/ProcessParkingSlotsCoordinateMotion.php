@@ -99,7 +99,7 @@ class ProcessParkingSlotsCoordinateMotion implements ShouldQueue
             $pool->wait();
 
             // 🔁 Transfer only current cropped images to remote YOLO server
-            exec("scp -r {$currentCropPath}/* test:{$remoteFolder}");
+            exec("scp -r {$currentCropPath}/* root@10.0.1.123:{$remoteFolder}");
         }
     }
 }

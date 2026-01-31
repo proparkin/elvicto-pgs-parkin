@@ -1,0 +1,22 @@
+    FILE_NAME                                      SERVICE NAME
+
+detect_number_plate_flask.py        ---> Number_plate_detection_flask_api.service
+
+filewatcher_crop_images_to_flask.py --->pgs_objectdetection_crop_img.service
+
+new_watcher                         --->Watcher_ftp.service
+
+anpr_api.py                         --->Anpr_ocr.service
+
+search_kiosk_watcher.py             --->kiosk_image_processing.service
+
+
+
+
+To restart above services
+sudo systemctl daemon-reload
+sudo systemctl restart your_service_name.service
+sudo systemctl status your_service_name.service
+
+To tail service or to check current logs
+ sudo journalctl -u your_service_name.service  -f

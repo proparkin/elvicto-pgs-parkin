@@ -74,7 +74,7 @@ class ProcessParkingSlots implements ShouldQueue
             });
         }
         $pool->wait(); 
-        exec("scp -r {$slotImageBasePath}/* root@test:{$remoteImageFolder}");
+        exec("scp -r {$slotImageBasePath}/* root@10.0.1.123:{$remoteImageFolder}");
         DetectNumberPlates::dispatch();
     }
 }

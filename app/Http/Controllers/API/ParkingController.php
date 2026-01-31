@@ -107,17 +107,17 @@ class ParkingController extends Controller
                 ->keyBy('block_name'); // Index by block_name for easy lookup
 
             $customResponse = [
-                'Display-1' => $blocks['DTC3-P1']->slots_count ?? 0,
-                'Display-2' => $blocks['DTC4-P3']->slots_count ?? 0,
-                'Display-3' => ($blocks['DTC3-P2']->slots_count ?? 0) + ($blocks['DTC3-Q1']->slots_count ?? 0),
-                'Display-4' => ($blocks['DTC4-P4']->slots_count ?? 0) + ($blocks['DTC4-Q3']->slots_count ?? 0),
-                'Display-5' => ($blocks['DTC3-Q2']->slots_count ?? 0) + ($blocks['DTC3-R1']->slots_count ?? 0),
-                'Display-6' => ($blocks['DTC4-Q4']->slots_count ?? 0) + ($blocks['DTC4-R3']->slots_count ?? 0),
-                'Display-7' => ($blocks['DTC3-R2']->slots_count ?? 0) + ($blocks['DTC3-S1']->slots_count ?? 0),
-                'Display-8' => ($blocks['DTC4-R4']->slots_count ?? 0) + ($blocks['DTC4-S3']->slots_count ?? 0),
-                'Display-9' => ($blocks['DTC3-S2']->slots_count ?? 0) + ($blocks['DTC3-T1']->slots_count ?? 0),
-                'Display-10' => ($blocks['DTC4-S4']->slots_count ?? 0) + ($blocks['DTC4-T3']->slots_count ?? 0),
-                'Display-11' => ($blocks['DTC3-T2']->slots_count ?? 0) + ($blocks['DTC3-U1']->slots_count ?? 0),
+                'Display-1' => $blocks['DTC3-P1']->slots_count ?? 0, // block -id - 33
+                'Display-2' => $blocks['DTC4-P3']->slots_count ?? 0, // block -id - 35
+                'Display-3' => ($blocks['DTC3-P2']->slots_count ?? 0) + ($blocks['DTC3-Q1']->slots_count ?? 0), // block - id - 34 - 37
+                'Display-4' => ($blocks['DTC4-P4']->slots_count ?? 0) + ($blocks['DTC4-Q3']->slots_count ?? 0), // block - id - 36 - 39
+                'Display-5' => ($blocks['DTC3-Q2']->slots_count ?? 0) + ($blocks['DTC3-R1']->slots_count ?? 0), // block - id - 
+                'Display-6' => ($blocks['DTC4-Q4']->slots_count ?? 0) + ($blocks['DTC4-R3']->slots_count ?? 0), // block - id - 38 - 43
+                'Display-7' => ($blocks['DTC3-R2']->slots_count ?? 0) + ($blocks['DTC3-S1']->slots_count ?? 0), // block - id - 42 - 45
+                'Display-8' => ($blocks['DTC4-R4']->slots_count ?? 0) + ($blocks['DTC4-S3']->slots_count ?? 0), // block - id - 44 - 47
+                'Display-9' => ($blocks['DTC3-S2']->slots_count ?? 0) + ($blocks['DTC3-T1']->slots_count ?? 0), // block - id - 46 - 49
+                'Display-10' => ($blocks['DTC4-S4']->slots_count ?? 0) + ($blocks['DTC4-T3']->slots_count ?? 0), // block - id - 48 - 51
+                'Display-11' => ($blocks['DTC3-T2']->slots_count ?? 0) + ($blocks['DTC3-U1']->slots_count ?? 0), // block - id - 50 
                 'Display-12' => ($blocks['DTC4-T4']->slots_count ?? 0) + ($blocks['DTC4-U3']->slots_count ?? 0),
                 'Display-13' => ($blocks['DTC3-U2']->slots_count ?? 0) + ($blocks['DTC3-V1']->slots_count ?? 0),
                 'Display-14' => ($blocks['DTC4-U4']->slots_count ?? 0) + ($blocks['DTC4-V3']->slots_count ?? 0),
@@ -302,8 +302,8 @@ class ParkingController extends Controller
                 ->keyBy('block_name'); // Index by block_name for easy lookup
 
             $customResponse = [
-                'Display-1' => ($blocks['INT3-I1']->slots_count ?? 0) + ($blocks['INT3-I2']->slots_count ?? 0) + ($blocks['INT3-J2']->slots_count ?? 0),
-                'Display-2' => ($blocks['INT3-J1']->slots_count ?? 0) + ($blocks['INT3-K2']->slots_count ?? 0),
+                'Display-1' => ($blocks['INT3-I1']->slots_count ?? 0) + ($blocks['INT3-I2']->slots_count ?? 0) + ($blocks['INT3-J2']->slots_count ?? 0),// block id - 89 - 90 - 94
+                'Display-2' => ($blocks['INT3-J1']->slots_count ?? 0) + ($blocks['INT3-K2']->slots_count ?? 0), // block id - 93 -98
                 'Display-3' => ($blocks['INT3-K1']->slots_count ?? 0) + ($blocks['INT3-L2']->slots_count ?? 0),
                 'Display-4' => ($blocks['INT3-L1']->slots_count ?? 0) + ($blocks['INT3-M2']->slots_count ?? 0),
                 'Display-5' => ($blocks['INT3-M1']->slots_count ?? 0) + ($blocks['INT3-N2']->slots_count ?? 0),
@@ -337,19 +337,19 @@ class ParkingController extends Controller
                 ->keyBy('block_name'); // Index by block_name for easy lookup
 
             $customResponse = [
-                'Display-1' => $blocks['INT3-I2']->slots_count ?? 0,
-                'Display-2' => $blocks['INT4-I4']->slots_count ?? 0,
-                'Display-3' => ($blocks['INT3-I1']->slots_count ?? 0) + ($blocks['INT3-J2']->slots_count ?? 0),
-                'Display-4' => ($blocks['INT4-I3']->slots_count ?? 0) + ($blocks['INT4-J4']->slots_count ?? 0),
-                'Display-5' => ($blocks['INT3-J1']->slots_count ?? 0) + ($blocks['INT3-K2']->slots_count ?? 0),
-                'Display-6' => ($blocks['INT4-J3']->slots_count ?? 0) + ($blocks['INT4-K4']->slots_count ?? 0),
-                'Display-7' => ($blocks['INT3-K1']->slots_count ?? 0) + ($blocks['INT3-L2']->slots_count ?? 0),
-                'Display-8' => ($blocks['INT4-K3']->slots_count ?? 0) + ($blocks['INT4-L4']->slots_count ?? 0),
-                'Display-9' => ($blocks['INT3-L1']->slots_count ?? 0) + ($blocks['INT3-M2']->slots_count ?? 0),
-                'Display-10' => ($blocks['INT4-L3']->slots_count ?? 0) + ($blocks['INT4-M4']->slots_count ?? 0),
-                'Display-11' => ($blocks['INT3-M1']->slots_count ?? 0) + ($blocks['INT3-N2']->slots_count ?? 0),
-                'Display-12' => ($blocks['INT4-M3']->slots_count ?? 0) + ($blocks['INT4-N4']->slots_count ?? 0) + ($blocks['INT4-N3']->slots_count ?? 0),
-                'Display-13' => ($blocks['INT3-N1']->slots_count ?? 0) + ($blocks['INT3-O2']->slots_count ?? 0) + ($blocks['INT3-O1']->slots_count ?? 0),
+                'Display-1' => $blocks['INT3-I2']->slots_count ?? 0, // block id - 90
+                'Display-2' => $blocks['INT4-I4']->slots_count ?? 0, // block id - 92
+                'Display-3' => ($blocks['INT3-I1']->slots_count ?? 0) + ($blocks['INT3-J2']->slots_count ?? 0),// block id - 89 - 94
+                'Display-4' => ($blocks['INT4-I3']->slots_count ?? 0) + ($blocks['INT4-J4']->slots_count ?? 0),// block id - 91 - 96
+                'Display-5' => ($blocks['INT3-J1']->slots_count ?? 0) + ($blocks['INT3-K2']->slots_count ?? 0),// block id - 93 - 98
+                'Display-6' => ($blocks['INT4-J3']->slots_count ?? 0) + ($blocks['INT4-K4']->slots_count ?? 0),// block id - 95 - 100
+                'Display-7' => ($blocks['INT3-K1']->slots_count ?? 0) + ($blocks['INT3-L2']->slots_count ?? 0),// block id - 97 - 102
+                'Display-8' => ($blocks['INT4-K3']->slots_count ?? 0) + ($blocks['INT4-L4']->slots_count ?? 0),// block id - 99 - 104 
+                'Display-9' => ($blocks['INT3-L1']->slots_count ?? 0) + ($blocks['INT3-M2']->slots_count ?? 0),// block id - 101 - 106 
+                'Display-10' => ($blocks['INT4-L3']->slots_count ?? 0) + ($blocks['INT4-M4']->slots_count ?? 0),// block id - 103 - 108
+                'Display-11' => ($blocks['INT3-M1']->slots_count ?? 0) + ($blocks['INT3-N2']->slots_count ?? 0),// block id - 105 - 110
+                'Display-12' => ($blocks['INT4-M3']->slots_count ?? 0) + ($blocks['INT4-N4']->slots_count ?? 0) + ($blocks['INT4-N3']->slots_count ?? 0),// block id - 107 - 112  - 111 
+                'Display-13' => ($blocks['INT3-N1']->slots_count ?? 0) + ($blocks['INT3-O2']->slots_count ?? 0) + ($blocks['INT3-O1']->slots_count ?? 0),// block id - 109 - 114 - 113
             ];
 
             $total_display_count = array_sum($customResponse);
@@ -617,9 +617,27 @@ class ParkingController extends Controller
     //     }
     // }
 
+    private function normalizeLot($name)
+    {
+        $name = strtoupper(trim($name));
+
+        if (str_contains($name, 'INTERNATIONAL TERMINAL') || str_contains($name, 'INT')) 
+        {
+            return 'INT';
+        }
+
+        if (str_contains($name, 'DOMESTIC CAR PARKING') || str_contains($name, 'DTC')) 
+        {
+            return 'DTC';
+        }
+
+        return 'UNKNOWN';
+    }
+
     public function searchVehicleLocation($license_plate)
     {
-        try {
+        try 
+        {
             $response = Http::post('https://parkin.pro/api/v4/vehicle-info-pgs/vehicle-list-get', [
                 'registration_number' => $license_plate
             ]);
@@ -653,11 +671,23 @@ class ParkingController extends Controller
                         $best_score = 0;
                         $best_index = null;
 
-                        foreach ($parking_slots as $index => $slot) {
-                            $slot_plate = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($slot['vehicle_number_plate']));
+                        $booking_lot = $this->normalizeLot($booking['parking_lot']);
+                        
 
+                        foreach ($parking_slots as $index => $slot) 
+                        {
+                            $slot_lot = $this->normalizeLot($slot['lot_name']);
+
+                            if ($booking_lot !== $slot_lot) 
+                            {
+                                continue;
+                            }
+
+                            $slot_plate = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($slot['vehicle_number_plate']));
+                          
                             // 1. Exact match
-                            if ($slot_plate === $booking_plate) {
+                            if ($slot_plate === $booking_plate) 
+                            {
                                 $best_match = $slot;
                                 $best_score = 100;
                                 $best_index = $index;
@@ -665,7 +695,8 @@ class ParkingController extends Controller
                             }
 
                             // 2. Last 4 digits strict
-                            if (substr($slot_plate, -4) === substr($booking_plate, -4)) {
+                            if (substr($slot_plate, -4) === substr($booking_plate, -4)) 
+                            {
                                 $best_match = $slot;
                                 $best_score = 98;
                                 $best_index = $index;
@@ -673,7 +704,8 @@ class ParkingController extends Controller
                             }
 
                             // 3. First 4 + Last 3 strict
-                            if (
+                            if 
+                            (
                                 substr($slot_plate, 0, 4) === substr($booking_plate, 0, 4) &&
                                 substr($slot_plate, -3) === substr($booking_plate, -3)
                             ) 
@@ -697,7 +729,8 @@ class ParkingController extends Controller
                         }
 
                         // if get any valid match then attach slot list
-                        if ($best_match) {
+                        if ($best_match) 
+                        {
                             $booking['parking_slot_info'] = [
                                 'block_name'   => $best_match['block_name'],
                                 'lot_name'     => $best_match['lot_name'],
@@ -729,4 +762,125 @@ class ParkingController extends Controller
             ], 500);
         }
     }
+
+    // public function searchVehicleLocation($license_plate)
+    // {
+    //     try {
+    //         $response = Http::post('https://parkin.pro/api/v4/vehicle-info-pgs/vehicle-list-get', [
+    //             'registration_number' => $license_plate
+    //         ]);
+
+    //         //return $response;
+
+
+    //         $search_number = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($license_plate)); // Clean & uppercase
+
+    //         // All available slots
+    //         $parking_slots = ParkingSlot::select(
+    //                 'parking_blocks.block_name',
+    //                 'parking_blocks.lot_name',
+    //                 'parking_slots.slot_number',
+    //                 'parking_slots.vehicle_number_plate',
+    //                 'parking_slots.vehicle_image'
+    //             )
+    //             ->join('parking_blocks', 'parking_slots.block_id', '=', 'parking_blocks.id')
+    //             ->get()
+    //             ->toArray(); // convert to array so we can unset later
+
+    //         // return $parking_slots;
+
+    //         if ($response->successful()) 
+    //         {
+    //             $data = $response->json();
+    //             $bookings = $data['bookings'] ?? null;
+
+    //             if (is_array($bookings)) 
+    //             {
+    //                 foreach ($bookings as &$booking) 
+    //                 {
+    //                     $booking_plate = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($booking['registration_number']));
+
+    //                     $best_match = null;
+    //                     $best_score = 0;
+    //                     $best_index = null;
+
+    //                     foreach ($parking_slots as $index => $slot) 
+    //                     {
+    //                         $slot_plate = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($slot['vehicle_number_plate']));
+
+    //                         // 1. Exact match
+    //                         if ($slot_plate === $booking_plate) 
+    //                         {
+    //                             $best_match = $slot;
+    //                             $best_score = 100;
+    //                             $best_index = $index;
+    //                             break;
+    //                         }
+
+    //                         // 2. Last 4 digits strict
+    //                         if (substr($slot_plate, -4) === substr($booking_plate, -4)) {
+    //                             $best_match = $slot;
+    //                             $best_score = 98;
+    //                             $best_index = $index;
+    //                             break;
+    //                         }
+
+    //                         // 3. First 4 + Last 3 strict
+    //                         if 
+    //                         (
+    //                             substr($slot_plate, 0, 4) === substr($booking_plate, 0, 4) &&
+    //                             substr($slot_plate, -3) === substr($booking_plate, -3)
+    //                         ) 
+    //                         {
+    //                             $best_match = $slot;
+    //                             $best_score = 95;
+    //                             $best_index = $index;
+    //                             break;
+    //                         }
+
+    //                         // 4. Fuzzy fallback (high threshold)
+    //                         $percent = 0;
+    //                         similar_text($slot_plate, $booking_plate, $percent);
+
+    //                         if ($percent > $best_score && $percent >= 85) 
+    //                         {
+    //                             $best_score = $percent;
+    //                             $best_match = $slot;
+    //                             $best_index = $index;
+    //                         }
+    //                     }
+
+    //                     // if get any valid match then attach slot list
+    //                     if ($best_match) {
+    //                         $booking['parking_slot_info'] = [
+    //                             'block_name'   => $best_match['block_name'],
+    //                             'lot_name'     => $best_match['lot_name'],
+    //                             'slot_number'  => $best_match['slot_number'],
+    //                             'vehicle_image'=> $best_match['vehicle_image'],
+    //                             'match_score'  => $best_score
+    //                         ];
+
+    //                         // Slot consume bookings reuse
+    //                         unset($parking_slots[$best_index]);
+    //                     }
+    //                 }
+    //             }
+
+    //             return [
+    //                 'status' => true,
+    //                 'message' => 'Data search successfully',
+    //                 'all_vehicle_data' => $bookings,
+    //             ];
+    //         }
+
+    //     } 
+    //     catch (\Exception $e) 
+    //     {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Error search vehicle location',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 }

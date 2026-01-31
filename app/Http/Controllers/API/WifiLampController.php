@@ -24,21 +24,17 @@ class WifiLampController extends Controller
             ")
             ->Join('wiz_lamps', 'parking_slots.wiz_lamp_id', '=', 'wiz_lamps.id')
             ->whereBetween('parking_slots.id', [1, 400])
-            ->where('parking_slots.is_reserved',0)
+            ->where('parking_slots.is_reserved',1)
             // ->where('parking_slots.id',586)
             ->groupBy('wiz_lamps.id', 'wiz_lamps.mac_address', 'wiz_lamps.ip_address')
             // ->limit(1)
             ->get();
 
-            // return $slots_with_lamps->Count();
-
-          
-
-            
+            // return $slots_with_lamps->Count();    
         $updated_lamps = [];
     
         $lamp_json = escapeshellarg(json_encode($slots_with_lamps));
-        $pythonFile = '/var/www/html/public/scripts/ANPR_Yolov11/lamp_file.py';
+        $pythonFile = '/var/www/html/public/scripts/ANPR_Yolov11/lamp_file_old.py';
         $command = "python3 $pythonFile $lamp_json 2>&1";
     
         $output = [];

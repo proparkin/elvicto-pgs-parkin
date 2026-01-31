@@ -31,12 +31,12 @@ class DetectNumberPlateSlotsCoordinateOne implements ShouldQueue
             $job_check->is_checked = 1;
             $job_check->save();
             
-            $sshUser = 'test';
-            $sshHost = 'test';
-            $password = 'test';
+            $sshUser = 'root';
+            $sshHost = '10.0.1.123';
+            $password = 'Parkin@4321';
 
             $pythonExecutable = '/root/venv/bin/python3';
-            $pythonScriptPath = '/root/test.py';
+            $pythonScriptPath = '/root/test2.py';
             // $pythonScriptPath = '/root/test2_detect_object.py';
             $folderPath = '/root/slot_images/new_parkin_slot_images_-19_0';
 

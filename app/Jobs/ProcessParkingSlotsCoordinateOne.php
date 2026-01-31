@@ -104,7 +104,7 @@ class ProcessParkingSlotsCoordinateOne implements ShouldQueue
        
         $pool->wait();
 
-        exec("scp -r {$slotImageBasePath}/* test:{$remoteImageFolder}");
+        exec("scp -r {$slotImageBasePath}/* root@10.0.1.123:{$remoteImageFolder}");
     }
 }
 

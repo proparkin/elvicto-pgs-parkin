@@ -1,0 +1,63 @@
+import socket
+import json
+import sys
+
+UDP_PORT = 38899
+
+def send_wiz_command(ip, payload):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(3)
+    message = json.dumps(payload).encode('utf-8')
+    try:
+        sock.sendto(message, (ip, UDP_PORT))
+        data, _ = sock.recvfrom(1024)
+        return {"ip": ip, "response": json.loads(data.decode('utf-8'))}
+    except socket.timeout:
+        return {"ip": ip, "error": "No response"}
+    except Exception as e:
+        return {"ip": ip, "error": str(e)}
+    finally:
+        sock.close()
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "No lamp data provided"}))
+        return
+
+    try:
+        lamp_data = json.loads(sys.argv[1])
+    except json.JSONDecodeError:
+        print(json.dumps({"error": "Invalid JSON input"}))
+        return
+
+    results = []
+
+    for lamp in lamp_data:
+        ip = lamp.get("ip_address")
+        status = lamp.get("status")
+
+        if not ip:
+            results.append({"error": "Missing IP address"})
+            continue
+
+        # Choose color based on status
+        if status == 1:
+            color = {"r": 0, "g": 255, "b": 0}  # Green
+        elif status == 2:
+            color = {"r": 255, "g": 0, "b": 0}  # Red
+        else:
+            color = {"r": 255, "g": 255, "b": 255}  # Default white
+
+        payload = {
+            "method": "setPilot",
+            "params": {"state": True, "dimming": 100, **color}
+        }
+
+        result = send_wiz_command(ip, payload)
+        results.append(result)
+
+    # ✅ Print one final JSON array for Laravel to parse
+    print(json.dumps(results))
+
+if __name__ == "__main__":
+    main()

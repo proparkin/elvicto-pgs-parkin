@@ -16,80 +16,122 @@ class WifiLampJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $timeout = 120;
+
     public function handle()
     {
-        try {
-            $totalSlots = 2376;
-            $batchSize = 50;
-            $totalBatches = ceil($totalSlots / $batchSize);
+        try 
+        {
+            $changed_since = Carbon::now()->subMinutes(4);
 
-            $changed_since = Carbon::now()->subMinutes(3);
+            // Single query to get all lamps with their status
+            $slots_with_lamps = DB::table('parking_slots')
+                ->select('wiz_lamps.id', 'wiz_lamps.mac_address', 'wiz_lamps.ip_address')
+                ->selectRaw("
+                    CASE 
+                        WHEN SUM(CASE WHEN parking_slots.status = 2 THEN 1 ELSE 0 END) >= COUNT(*)
+                            THEN 2 
+                        WHEN SUM(CASE WHEN parking_slots.status = 1 THEN 1 ELSE 0 END) > 0
+                            THEN 1 
+                        ELSE 1
+                    END AS status
+                ")
+                ->join('wiz_lamps', 'parking_slots.wiz_lamp_id', '=', 'wiz_lamps.id')
+                ->where('parking_slots.is_reserved', 0)
+                ->whereNotNull('parking_slots.wiz_lamp_id')
+                ->where('parking_slots.change_slot', '>=', $changed_since)
+                ->groupBy('wiz_lamps.id', 'wiz_lamps.mac_address', 'wiz_lamps.ip_address')
+                ->get();
 
-            for ($batch = 0; $batch < $totalBatches; $batch++) 
+            Log::info("Found {$slots_with_lamps->count()} lamps to check");
+
+            // Filter lamps that need updating based on cache
+            $lamps_to_update = [];
+            $cache_keys = [];
+            
+            foreach ($slots_with_lamps as $lamp) 
             {
-                $start = ($batch * $batchSize) + 1;
-                $end = min($start + $batchSize - 1, $totalSlots);
+                $cacheKey = "lamp_status_{$lamp->id}";
+                $cache_keys[$lamp->id] = $cacheKey;
+            }
 
-                Log::info("Processing batch {$batch} → Slots {$start} to {$end}");
+            // Batch get cache values (more efficient than individual gets)
+            $cached_statuses = Cache::many($cache_keys);
 
-                $slots_with_lamps = DB::table('parking_slots')
-                    ->select('wiz_lamps.id', 'wiz_lamps.mac_address', 'wiz_lamps.ip_address')
-                    ->selectRaw("
-                        CASE 
-                            WHEN SUM(CASE WHEN parking_slots.status = 2 THEN 1 ELSE 0 END) >= COUNT(*)
-                                THEN 2 
-                            WHEN SUM(CASE WHEN parking_slots.status = 1 THEN 1 ELSE 0 END) > 0
-                                THEN 1 
-                            ELSE 1
-                        END AS status
-                    ")
-                    ->join('wiz_lamps', 'parking_slots.wiz_lamp_id', '=', 'wiz_lamps.id')
-                    ->whereBetween('parking_slots.id', [$start, $end])
-                    ->where('parking_slots.is_reserved', 0)
-                    ->whereNotNull('parking_slots.wiz_lamp_id')
-                    ->where('parking_slots.change_slot', '>=', $changed_since)
-                    ->groupBy('wiz_lamps.id', 'wiz_lamps.mac_address', 'wiz_lamps.ip_address')
-                    ->get();
+            foreach ($slots_with_lamps as $lamp) 
+            {
+                $cacheKey = $cache_keys[$lamp->id];
+                $previousStatus = $cached_statuses[$cacheKey] ?? null;
 
-                $lamps_to_update = [];
-                foreach ($slots_with_lamps as $lamp) 
+                if ($previousStatus !== $lamp->status) 
                 {
-                    $cacheKey = "lamp_status_{$lamp->id}";
-                    $previousStatus = Cache::get($cacheKey);
-
-                    if ($previousStatus !== $lamp->status) 
-                    {
-                        $lamps_to_update[] = $lamp;
-                        Cache::put($cacheKey, $lamp->status, now()->addMinutes(10));
-                    }
+                    $lamps_to_update[] = [
+                        'id' => $lamp->id,
+                        'mac_address' => $lamp->mac_address,
+                        'ip_address' => $lamp->ip_address,
+                        'status' => $lamp->status
+                    ];
                 }
+            }
 
-                if (!empty($lamps_to_update)) 
+            if (empty($lamps_to_update)) 
+            {
+                Log::info("No lamps need updating");
+                return;
+            }
+
+            Log::info("Updating " . count($lamps_to_update) . " lamps");
+
+            // Update cache in batch
+            $cache_updates = [];
+            foreach ($lamps_to_update as $lamp) 
+            {
+                $cache_updates["lamp_status_{$lamp['id']}"] = $lamp['status'];
+            }
+            Cache::putMany($cache_updates, now()->addMinutes(10));
+
+            // Single Python call with all lamps
+            $lamp_json = json_encode($lamps_to_update);
+            $pythonFile = '/var/www/html/public/scripts/ANPR_Yolov11/lamp_file.py';
+            
+            // Use process to avoid shell escaping issues
+            $descriptorspec = [
+                0 => ["pipe", "r"],  // stdin
+                1 => ["pipe", "w"],  // stdout
+                2 => ["pipe", "w"]   // stderr
+            ];
+
+            $process = proc_open("python3 $pythonFile", $descriptorspec, $pipes);
+
+            if (is_resource($process)) {
+                // Write JSON to stdin
+                fwrite($pipes[0], $lamp_json);
+                fclose($pipes[0]);
+
+                // Read output
+                $output = stream_get_contents($pipes[1]);
+                $errors = stream_get_contents($pipes[2]);
+                
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+
+                $return_value = proc_close($process);
+
+                if ($return_value !== 0) {
+                    Log::error('Python script failed', [
+                        'return_code' => $return_value,
+                        'errors' => $errors
+                    ]);
+                } 
+                else 
                 {
-                    $lamp_batches = array_chunk($lamps_to_update, 25);
-
-                    foreach ($lamp_batches as $batchIndex => $batchData) 
-                    {
-                        $lamp_json = escapeshellarg(json_encode($batchData));
-                        $pythonFile = '/var/www/html/public/scripts/ANPR_Yolov11/lamp_file.py';
-                        $command = "python3 $pythonFile $lamp_json 2>&1";
-
-                        $output = [];
-                        $return_var = null;
-                        exec($command, $output, $return_var);
-
-                        usleep(200000); // 0.2s delay
-                    }
+                    Log::info('Lamps updated successfully', ['output' => $output]);
                 }
-
-                usleep(200000);
             }
 
             Log::info("WifiLampJob completed successfully");
 
-        } 
-        catch (\Exception $e) 
-        {
+        } catch (\Exception $e) {
             Log::error('WifiLampJob failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

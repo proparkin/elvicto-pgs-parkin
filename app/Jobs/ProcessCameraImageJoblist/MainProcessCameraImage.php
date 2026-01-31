@@ -30,7 +30,7 @@ class MainProcessCameraImage implements ShouldQueue
         // Get only a subset of cameras
         $camera_data = Camera::select('id', 'ip_address')
             ->whereBetween('id', [$this->startId, $this->endId])
-            ->where('status', 1)
+            // ->where('status', 1)
             ->orderBy('id', 'asc')
             ->get();
 
@@ -66,11 +66,10 @@ class MainProcessCameraImage implements ShouldQueue
         try 
         {
             $process->mustRun();
-
         } 
         catch (ProcessFailedException $exception) 
         {
             logger('Python script failed: ' . $exception->getMessage());
         }
     }
-}
+} 

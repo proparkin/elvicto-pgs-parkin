@@ -4,7 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-use App\Jobs\{ProcessCameraImage};
+use App\Jobs\{ProcessCameraImage,ProcessBookingJobs};
 use App\Jobs\NewElvictoJobsOne\NewElvictoProcesssCameraImageOne;
 use App\Jobs\NewElvictoJobsTwo\NewElvictoProcesssCameraImageTwo;
 use App\Jobs\NewElvictoJobsThree\NewElvictoProcesssCameraImageThree;
@@ -15,9 +15,8 @@ use Illuminate\Support\Facades\Log;
 
 class Kernel extends ConsoleKernel
 {
-    /**
-     * Define the application's command schedule.
-     */
+    /*** Define the application's command schedule.*/
+    
     protected function schedule(Schedule $schedule): void
     {
         $schedule->call(function () 
@@ -36,51 +35,122 @@ class Kernel extends ConsoleKernel
             }
         })
         ->name('process_camera_live_stream_job')
+        // ->everyThreeMinutes()
         ->everyMinute()
         ->withoutOverlapping()
         ->onOneServer();
+
+        //  $schedule->command('run:every-second')->everyMinute();
+
+        // $schedule->call(function () 
+        // {
+        //     try 
+        //     {
+        //         app()->call('App\Http\Controllers\API\FtpMotion\CameraUploadFtpController@getLiveStream');
+        //     } 
+        //     catch (\Throwable $e) 
+        //     {
+        //         Log::error('process_camera_live_stream_job error: '.$e->getMessage());
+        //     } 
+        //     finally 
+        //     {
+        //         static::releaseMemory('process_camera_live_stream_job');
+        //     }
+        // })
+        // ->name('process_camera_live_stream_job')
+        // // ->everyThreeMinutes()
+        // ->everyMinute()
+        // ->withoutOverlapping()
+        // ->onOneServer();
+
+        // $schedule->call(function () 
+        // {
+        //     try 
+        //     {
+        //         app()->call('App\Http\Controllers\API\CameraQueueController200@getLiveStream');
+        //     } 
+        //     catch (\Throwable $e) 
+        //     {
+        //         Log::error('process_camera_live_stream_job error: '.$e->getMessage());
+        //     } 
+        //     finally 
+        //     {
+        //         static::releaseMemory('process_camera_live_stream_job');
+        //     }
+        // })
+        // ->name('process_camera_live_stream_job')
+        // ->everyMinute()
+        // ->withoutOverlapping()
+        // ->onOneServer();
 
         $schedule->call(function () 
         {
             try 
             {
-                app()->call('App\Http\Controllers\API\VehicleNumberDetectController@getLiveStream');
+                app()->call('App\Http\Controllers\API\SlotBookingController@slotBookingAndRemove');
             } 
             catch (\Throwable $e) 
             {
-                Log::error('python_detect_object_number_job error: '.$e->getMessage());
+                Log::error('process_camera_live_stream_job error: '.$e->getMessage());
             } 
             finally 
             {
-                static::releaseMemory('python_detect_object_number_job');
+                static::releaseMemory('process_camera_live_stream_job');
             }
         })
-        ->name('python_detect_object_number_job')
-        ->everyMinute()
+        ->name('process_slot_booking_job')
+        ->everyTwoMinutes()
         ->withoutOverlapping()
         ->onOneServer();
 
-        $schedule->call(function () 
-        {
-            try 
-            {
-                // \App\Jobs\WifiLampJob::dispatch()->onQueue('lamp');
-                \App\Jobs\WifiLampJob::dispatch();
-            } 
-            catch (\Throwable $e) 
-            {
-                Log::error('wifi_lamp_job dispatch error: '.$e->getMessage());
-            } 
-            finally 
-            {
-                static::releaseMemory('wifi_lamp_job');
-            }
-        })
-        ->name('wifi_lamp_job')
-        // ->everyFiveMinutes()
-        ->everyThreeMinutes()
-        ->withoutOverlapping()
-        ->onOneServer();
+        
+
+        // $schedule->call(function () 
+        // {
+        //     ProcessBookingJobs::dispatch();
+        // })->everyFiveMinutes();
+
+        // $schedule->call(function () 
+        // {
+        //     try 
+        //     {
+        //         app()->call('App\Http\Controllers\API\VehicleNumberDetectController@getLiveStream');
+        //     } 
+        //     catch (\Throwable $e) 
+        //     {
+        //         Log::error('python_detect_object_number_job error: '.$e->getMessage());
+        //     } 
+        //     finally 
+        //     {
+        //         static::releaseMemory('python_detect_object_number_job');
+        //     }
+        // })
+        // ->name('python_detect_object_number_job')
+        // ->everyMinute()
+        // ->withoutOverlapping()
+        // ->onOneServer();
+
+        // $schedule->call(function () 
+        // {
+        //     try 
+        //     {
+        //         // \App\Jobs\WifiLampJob::dispatch()->onQueue('lamp');
+        //         \App\Jobs\WifiLampJob::dispatch();
+        //     } 
+        //     catch (\Throwable $e) 
+        //     {
+        //         Log::error('wifi_lamp_job dispatch error: '.$e->getMessage());
+        //     } 
+        //     finally 
+        //     {
+        //         static::releaseMemory('wifi_lamp_job');
+        //     }
+        // })
+        // ->name('wifi_lamp_job')
+        // // ->everyFiveMinutes()
+        // ->everyThreeMinutes()
+        // ->withoutOverlapping()
+        // ->onOneServer();
 
         // $schedule->call(function () 
         // {
@@ -102,15 +172,16 @@ class Kernel extends ConsoleKernel
         // ->withoutOverlapping()
         // ->onOneServer();
 
-        // $schedule->exec('/usr/local/bin/cleanup_camera_uploads.sh')
-        // ->everyTenMinutes()
-        // ->appendOutputTo(storage_path('logs/camera_cleanup.log'));
-
  
         //  $schedule->call(function () 
         //  {
         //      WifiLampJobTwo::dispatch();
         //  })->everyTwoMinutes();
+
+        // slot bookin and remove job
+       
+
+
        
         $schedule->call(function () 
         {

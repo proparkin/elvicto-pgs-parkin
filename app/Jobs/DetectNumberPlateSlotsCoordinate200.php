@@ -12,188 +12,107 @@ use DB;
 use phpseclib3\Net\SSH2;
 use phpseclib3\Crypt\RSA;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class DetectNumberPlateSlotsCoordinate200 implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function handle(): void
+    public function handle()
     {
-        try
+        $timeoutSeconds = 300;
+
+        try 
         {
-            $job_check = ParkingSlot::where('id', 1)->where('is_checked', 0)->first();
-            if (!$job_check) 
-            {
-                \Log::info("Job already running or completed.");
-                return;
-            }
-
-            $job_check->is_checked = 1;
-            $job_check->save();
+            $response = Http::timeout($timeoutSeconds)->post('http://10.0.1.123:6000/process', [
+                'current_folder' => '/root/slot_images/baywise_parkin_slot_images',
+                'previous_folder' => '/root/previous_slot_images',
+            ]);
+            Log::info('Flask API raw response', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+                'json'   => $response->json()
+            ]);
             
-            $sshUser = 'test';
-            $sshHost = 'test';
-            $password = 'test';
 
-            $pythonExecutable = '/root/venv/bin/python3';
-            $pythonScriptPath = '/root/test.py';
-            // $pythonScriptPath = '/root/test2_detect_object.py';
-            $folderPath = '/root/slot_images/new_parkin_slot_images_1_1007';
-
-            $command = "source /root/venv/bin/activate && YOLO_CONFIG_DIR=/root/tmp/yoloconfig PADDLEOCR_HOME=/root/tmp/paddleocr MPLCONFIGDIR=/root/tmp/matplotlib "
-            . "$pythonExecutable $pythonScriptPath $folderPath 2>&1";
-
-            $ssh = new SSH2($sshHost);
-            if (!$ssh->login($sshUser, $password)) 
+            if (!$response->successful()) 
             {
-                throw new \Exception("SSH login failed");
+                Log::error("Flask API call failed with status {$response->status()} : {$response->body()}");
+                throw new \Exception("Flask API call failed: {$response->body()}");
             }
 
-            $output = $ssh->exec($command); 
-
-            unset($ssh);  
-
-            $ssh = new SSH2($sshHost);
-            if (!$ssh->login($sshUser, $password)) 
-            {
-                throw new \Exception("SSH login failed on second connection");
-            }
-
-            $filePath = '/root/output.json';
-           
-            $waitTime = 300;
-            $fileFound = false;
-            $oldMTime = trim($ssh->exec("[ -f $filePath ] && stat -c %Y $filePath || echo 0"));
-
-            for ($i = 0; $i < $waitTime; $i++) 
-            {
-                $newMTime = trim($ssh->exec("[ -f $filePath ] && stat -c %Y $filePath || echo 0"));
+            $data = $response->json('data');
+          
+             
             
-                if ($newMTime > $oldMTime) 
+            if (empty($data) || !is_array($data)) 
+            {
+                Log::error("Invalid JSON received from Flask First API");
+                throw new \Exception("Invalid JSON received from Flask API");
+            }
+
+  
+            
+
+            $casesStatus = "";
+            $casesVehicle = "";
+            $casesImage = "";
+            $casesChangeSlot = "";
+            $ids = [];
+
+            foreach ($data as $slot) 
+            {
+                $id = (int) ($slot['slot_number'] ?? 0);
+                $vehicleNumberRaw = $slot['vehicle_number'] ?? null;
+                $status = (int) ($slot['status'] ?? 1);
+
+                if (!$id) continue;
+
+                $vehicleNumber = preg_replace("/[^A-Za-z0-9]/", "", $vehicleNumberRaw ?? '');
+
+                if (strtoupper(substr($vehicleNumber, 0, 1)) === 'E' || strtoupper(substr($vehicleNumber, 0, 1)) === 'F') 
                 {
-                    $exists = trim($ssh->exec("[ -s $filePath ] && echo 1 || echo 0"));
-                    if ($exists === '1') 
-                    {
-                        $fileFound = true;
-                        break;
-                    }
+                    $vehicleNumber = substr($vehicleNumber, 1);
                 }
-            
-                sleep(1);
+
+                $plateNumber = ($status == 1) ? NULL : $vehicleNumber;
+                $imageValue = ($status == 1) ? NULL : $id;
+
+                $casesStatus .= "WHEN {$id} THEN '{$status}' ";
+                $casesVehicle .= "WHEN {$id} THEN " . ($plateNumber ? "'{$plateNumber}'" : "NULL") . " ";
+                $casesImage .= "WHEN {$id} THEN " . ($plateNumber ? "'storage/new_parkin_slot_images_1_500/{$imageValue}.jpg'" : "NULL") . " ";
+                $casesChangeSlot .= "WHEN {$id} THEN '" . now() . "' ";
+
+                $ids[] = $id;
             }
 
-            if (!$fileFound) 
+            if (count($ids) > 0) 
             {
-                \Log::error("Output file not found after waiting {$waitTime} seconds");
-                $this->fail(new \Exception("Output file not generated"));
-                return;
-            }
+                $idList = implode(',', $ids);
 
-            $jsonOutput = $ssh->exec("cat $filePath");
-            \Log::info("Raw JSON Output Slot Coordinate (first 500 chars): " . substr($jsonOutput, 0, 2500));
-            if (str_contains(strtolower($output), 'error')) 
-            {
-                $this->fail(new \Exception("Python script failed: " . $output));
-                return;
-            }
+                $sql = "
+                    UPDATE parking_slots
+                    SET
+                        status = CASE id {$casesStatus} END,
+                        vehicle_number_plate = CASE id {$casesVehicle} END,
+                        vehicle_image = CASE id {$casesImage} END,
+                        change_slot = CASE id {$casesChangeSlot} END
+                    WHERE id IN ({$idList})
+                ";
 
-            $json = json_decode($jsonOutput, true);
-
-
-            if (json_last_error() !== JSON_ERROR_NONE) 
-            {
-                \Log::error("JSON Decode Failed: " . json_last_error_msg());
+                DB::statement($sql);
+                Log::info("Test batch Parking slots updated successfully: " . count($ids));
             } 
             else 
             {
-                $casesStatus = "";
-                $casesVehicle = "";
-                $casesImage = "";
-                $casesChangeSlot = "";
-                $ids = [];
-
-                foreach ($json as $data) 
-                {
-                    $id = (int) $data['slot_number'];
-                    $vehicleNumberRaw = $data['vehicle_number'];
-                    $vehicleNumber = preg_replace("/[^A-Za-z0-9]/", "", $vehicleNumberRaw);
-
-                    if (strtoupper(substr($vehicleNumber, 0, 1)) === 'E' || strtoupper(substr($vehicleNumber, 0, 1)) === 'F') 
-                    {
-                        $vehicleNumber = substr($vehicleNumber, 1);
-                    }
-
-                    if (strtoupper(substr($vehicleNumber, 0, 1)) === 'P') 
-                    {
-                        $nextChar = strtoupper(substr($vehicleNumber, 1, 1));
-                        if ($nextChar !== 'B' && $nextChar !== 'Y') 
-                        {
-                            $vehicleNumber = substr($vehicleNumber, 1);
-                        }
-                    }
-
-                    if (strtoupper(substr($vehicleNumber, 0, 1)) === 'A') 
-                    {
-                        $nextChar = strtoupper(substr($vehicleNumber, 1, 1));
-                        if ($nextChar !== 'N' && $nextChar !== 'P' && $nextChar !== 'R' && $nextChar !== 'S') 
-                        {
-                            $vehicleNumber = substr($vehicleNumber, 1);
-                        }
-                    }
-
-                    if (strtoupper(substr($vehicleNumber, 0, 1)) === 'R') 
-                    {
-                        $nextChar = strtoupper(substr($vehicleNumber, 1, 1));
-                        if ($nextChar !== 'J') 
-                        {
-                            $vehicleNumber = 'K' . substr($vehicleNumber, 1);
-                        }
-                    }
-
-                    if (strtoupper(substr($vehicleNumber, 0, 1)) === 'X') 
-                    {
-                        $vehicleNumber = 'K' . substr($vehicleNumber, 1);
-                    }
-
-                    if (strtoupper(substr($vehicleNumber, 0, 1)) === 'L') 
-                    {
-                        $vehicleNumber = 'K' . $vehicleNumber;
-                    }
-
-                    $status = (int) $data['status'];  
-                    $plateNumber = ($status == 1) ? NULL : $vehicleNumber;
-                    $imageValue = ($status == 1) ? NULL : $id;
-
-                    $casesStatus .= "WHEN {$id} THEN '{$status}' ";
-                    $casesVehicle .= "WHEN {$id} THEN " . ($plateNumber ? "'{$plateNumber}'" : "NULL") . " ";
-                    $casesImage .= "WHEN {$id} THEN " . ($plateNumber ? "'storage/new_parkin_slot_images_1_1007/{$imageValue}.jpg'" : "NULL") . " ";
-                    
-                    $casesChangeSlot .= "WHEN {$id} THEN '" . Carbon::now() . "' ";
-
-                    $ids[] = $id;
-                }
-
-                if (count($ids) > 0) {
-                    $idList = implode(',', $ids);
-                    $sql = "
-                        UPDATE parking_slots
-                        SET
-                            status = CASE id {$casesStatus} END,
-                            vehicle_number_plate = CASE id {$casesVehicle} END,
-                            vehicle_image = CASE id {$casesImage} END,
-                            change_slot = CASE id {$casesChangeSlot} END
-                        WHERE id IN ({$idList})
-                    ";
-
-                    DB::statement($sql);
-                }
+                Log::warning("No valid slot IDs found in Flask API data.");
             }
         }
         catch (\Exception $e) 
         {
-             \Log::error("Job failed: " . $e->getMessage());
-             throw $e;
-        } 
+            Log::error("Batch test Flask First DetectNumberPlateSlotsCoordinate Job Failed: " . $e->getMessage());
+        }
         finally 
         {
             ParkingSlot::where('id', 1)->update(['is_checked' => 0]);

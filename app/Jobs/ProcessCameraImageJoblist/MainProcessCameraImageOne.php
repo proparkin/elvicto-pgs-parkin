@@ -28,11 +28,14 @@ class MainProcessCameraImageOne implements ShouldQueue
     public function handle()
     {
         // Get only a subset of cameras
-        $camera_data = Camera::select('id', 'ip_address')
-            ->whereBetween('id', [1, 15])
-            ->where('status', 1)
-            ->orderBy('id', 'asc')
-            ->limit(10)
+        $query1 = Camera::select('id','ip_address')->whereBetween('id',[11,18]);
+        $query2 = Camera::select('id','ip_address')->whereBetween('id',[39,54]);
+        $query3 = Camera::select('id','ip_address')->whereBetween('id',[75,82]);
+
+        $camera_data = $query1
+            ->unionAll($query2)
+            ->unionAll($query3)
+            ->orderBy('id')
             ->get();
 
         if ($camera_data->isEmpty()) 
@@ -44,11 +47,11 @@ class MainProcessCameraImageOne implements ShouldQueue
         $camera_list = $camera_data->map(fn($cam) => ['id' => $cam->id, 'ip' => $cam->ip_address]);
 
         $jsonFileName = "camera_list_{$this->startId}_{$this->endId}.json";
-        $jsonPath = storage_path("app/public/{$jsonFileName}");
+        $jsonPath = storage_path("app/public/camera_list_json/{$jsonFileName}");
         file_put_contents($jsonPath, json_encode($camera_list));
 
         $pythonExecutable = '/var/www/html/venv/bin/python3';
-        $pythonScriptPath = public_path('scripts/ANPR_Yolov11/capture_images.py');
+        $pythonScriptPath = public_path('scripts/ANPR_Yolov11/capture_images_baywise.py');
         $command = [
             $pythonExecutable,
             $pythonScriptPath,
